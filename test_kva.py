@@ -43,10 +43,10 @@ def generate_random_incremental_values(start, end, days):
     return values
 
 # API endpoint URL
-url = "https://engine-web.stage.gomatimvvnl.in/daily_energy_consumption/many/"
+url = "https://engine-web.gomatimvvnl.in/daily_energy_consumption/many/"
 
 # Fetch parameters from CSV
-csv_filename = f"dialy.csv"
+csv_filename = f"new_file.csv"
 rows = fetch_parameters_from_csv(csv_filename)
 
 # Process each record from the CSV
@@ -58,7 +58,7 @@ for row in rows:
     kvah_max = int(row['consumption_max'])
     min_max_demand = float(row['min_max_demand'])
     max_max_demand = float(row['max_max_demand'])
-    net_metering_flag = row['net_metering_flag']
+    net_metering_flag = row['netMeterflag']
     
     # Initial parameters
     start_import_vah_previous = 0  # Initial value
@@ -87,8 +87,8 @@ for row in rows:
                 {
                     "start_daily_datetime": start_daily_datetime,
                     "end_daily_datetime": end_daily_datetime,
-                    "account_id": row["account_id"],
-                    "meter_number": row["meter_number"],
+                    "account_id": row["accountId"],
+                    "meter_number": row["meterSrno"],
                     "energy_consumption_kwh": "00",  
                     "energy_consumption_kvah": energy_consumption_kvah,
                     "energy_consumption_export_kwh": "00",
@@ -115,6 +115,8 @@ for row in rows:
         # Check the response status
         if response.status_code == 200:
             print(f"Record for {row['account_id']} on {start_daily_datetime} successfully sent.")
+
+            print(response) 
         else:
             # print(f"Failed to send record for {row['account_id']} on {start_daily_datetime}. Status Code: {response.status_code}")
             print(response.text)  # Print the response for debugging

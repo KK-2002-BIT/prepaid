@@ -5,7 +5,8 @@ import calendar
 # Read the CSV file into a DataFrame
 df = pd.read_csv('updated_data.csv')
 
-fc =99
+fc = 99
+rate_per_unit = 6.3
 
 # Convert 'Start date time' and 'meterInstalldate' to datetime
 df['Start date time'] = pd.to_datetime(df['Start date time'])
@@ -20,6 +21,7 @@ def get_days_in_month(date):
 # Apply the function to the 'Start date time' column to create a new column 'Days in Month'
 df['Days in Month'] = df['Start date time'].apply(get_days_in_month)
 
+
 # Function to calculate Daily max demand penalty
 def calculate_daily_penalty(row):
     if row['Max demand'] > row['sanctionedLoad']:
@@ -28,6 +30,14 @@ def calculate_daily_penalty(row):
         penalty = fc * (row['Max demand'] - row['sanctionedLoad']) / (days_in_month - day_of_month)
         return penalty
     return 0
+
+
+ # Create the `Daily consumption in rupees` column
+df["Daily consumption in rupees"] = df["Daily consumption"] * rate_per_unit
+
+
+# Create the `Cumm daily consumption rupees mtd` column as cumulative summation of `Daily consumption in rupees`
+df["Cumm daily consumption rupees mtd"] = df["Daily consumption in rupees"].cumsum()
 
 # Create the 'Daily max demand penalty' column
 df['Daily max demand penalty'] = df.apply(calculate_daily_penalty, axis=1)
@@ -100,15 +110,29 @@ df['Daily green energy consumption in rupees'] = 0.36 * df['Daily consumption']
 # Calculate 'Cumm daily green energy consumption rupees mtd' as a cumulative sum of 'Daily green energy consumption in rupees'
 df['Cumm daily green energy consumption rupees mtd'] = df['Daily green energy consumption in rupees'].cumsum()
 
-# Reorder columns to insert after 'Cumm daily final rebate mtd'
-columns = df.columns.tolist()
-rebate_index = columns.index('Cumm daily final rebate mtd')
-columns = (
-    columns[:rebate_index + 1]
-    + ['Daily green energy consumption in rupees', 'Cumm daily green energy consumption rupees mtd']
-    + columns[rebate_index + 1:]
+# Calculate 'Daily final charge'
+df['Daily final charge'] = (
+    df['Daily net payable'] +
+    df['Daily ed charge'] +
+    df['Daily max demand penalty'] +
+    df['Daily green energy consumption in rupees'] -
+    df['Daily final rebate']
 )
-df = df[columns]
+
+# Calculate 'Cumm daily final charge mtd' as a cumulative sum of 'Daily final charge'
+df['Cumm daily final charge mtd'] = df['Daily final charge'].cumsum()
+
+# Create Opening balance and Closing balance columns
+df['Opening balance'] = df['prepaidOpeningbalance'].iloc[0]  # Set for first row
+df['Closing balance'] = df['Opening balance'] - df['Daily final charge']
+
+# Loop through the rows to set Opening balance for subsequent rows
+for i in range(1, len(df)):
+    df.at[i, 'Opening balance'] = df.at[i-1, 'Closing balance']
+    df.at[i, 'Closing balance'] = df.at[i, 'Opening balance'] - df.at[i, 'Daily final charge']
+
+# Round all numerical columns to 2 decimal places
+df = df.round(3)
 
 # Save the updated DataFrame to a CSV file
 df.to_csv('final_result.csv', index=False)

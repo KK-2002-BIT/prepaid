@@ -9,7 +9,7 @@ api_response_csv = "api_response_data.csv"  # Intermediate file for API response
 output_csv = "updated_data.csv"  # Final processed CSV file
 
 # API base URL
-api_url = "https://engine-web.stage.gomatimvvnl.in/daily_energy_consumption/{account_id}/"
+api_url = "https://engine-web.gomatimvvnl.in/daily_energy_consumption/{account_id}/"
 
 # Specify the columns for data processing
 columns_to_import = [
@@ -19,7 +19,7 @@ columns_to_import = [
 ]
 
 # Define the rate per unit for calculation
-rate_per_unit = 6.3  # Adjust this value as needed
+# rate_per_unit = 6.3  # Adjust this value as needed
 
 def fetch_api_data(account_id):
     """Fetch data from the API for a given account ID."""
@@ -33,24 +33,31 @@ def fetch_api_data(account_id):
         return []
 
 def save_data_to_csv(data, output_file):
-    """Save a list of dictionaries to a CSV file."""
+    """Save a list of dictionaries to a CSV file, sorted by date."""
     if not data:
         print("No data to save.")
         return
 
-    # Get fieldnames from the first record
-    fieldnames = data[0].keys()
+    # Convert the list of dictionaries into a DataFrame for easier manipulation
+    df = pd.DataFrame(data)
+
+    # Ensure the date columns are in datetime format (you can specify one or more columns if needed)
+    df["start_daily_datetime"] = pd.to_datetime(df["start_daily_datetime"], errors='coerce')
+    df["end_daily_datetime"] = pd.to_datetime(df["end_daily_datetime"], errors='coerce')
+
+    # Sort the DataFrame by "start_daily_datetime" (or "end_daily_datetime" if needed)
+    df = df.sort_values(by="start_daily_datetime")
+
+    # Get fieldnames from the DataFrame columns
+    fieldnames = df.columns.tolist()
 
     # Write header and rows to CSV
-    with open(output_file, mode="w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(data)
-
-    print(f"Data saved to {output_file}")
+    df.to_csv(output_file, index=False, encoding="utf-8")
+    
+    print(f"Data saved to {output_file} after sorting by date.")
 
 def process_and_save_final_data(api_response_csv, input_csv, output_csv):
-    """Process the API response CSV and add calculated columns and merge with input CSV data."""
+    """Process the API response CSV and add calculated columns, merge with input CSV data, and sort by date."""
     if not os.path.exists(api_response_csv):
         print(f"API response file {api_response_csv} not found.")
         return
@@ -65,25 +72,35 @@ def process_and_save_final_data(api_response_csv, input_csv, output_csv):
         "Cumm daily consumption export mtd", "Net metering flag", "Max demand", "Multiplying factor"
     ]
 
-    # Create the `Daily consumption in rupees` column
-    df_api["Daily consumption in rupees"] = df_api["Daily consumption"] * rate_per_unit
+    # # Create the `Daily consumption in rupees` column
+    # df_api["Daily consumption in rupees"] = df_api["Daily consumption"] * rate_per_unit
+    
 
-    # Create the `Cumm daily consumption rupees mtd` column as cumulative summation of `Daily consumption in rupees`
-    df_api["Cumm daily consumption rupees mtd"] = df_api["Daily consumption in rupees"].cumsum()
+    # # Create the `Cumm daily consumption rupees mtd` column as cumulative summation of `Daily consumption in rupees`
+    # df_api["Cumm daily consumption rupees mtd"] = df_api["Daily consumption in rupees"].cumsum()
+
+    
 
     # Reorder columns
     column_order = [
         "Start date time", "End date time", "Account id", "Meter serial number",
-        "Daily consumption", "Daily consumption in rupees", "Daily consumption export",
-        "Cumm daily consumption mtd", "Cumm daily consumption rupees mtd",
+        "Daily consumption",  "Daily consumption export",
+        "Cumm daily consumption mtd", 
         "Cumm daily consumption export mtd", "Net metering flag", "Max demand", "Multiplying factor"
     ]
     df_api = df_api[column_order]
 
+    # Convert date columns to datetime format for sorting
+    df_api["Start date time"] = pd.to_datetime(df_api["Start date time"], errors='coerce')
+    df_api["End date time"] = pd.to_datetime(df_api["End date time"], errors='coerce')
+
+    # Sort the DataFrame by "Start date time"
+    df_api = df_api.sort_values(by="Start date time")
+
     # Read the additional columns from the input CSV
     additional_columns = [
         "accountId", "supplyTypecode", "sanctionedLoad", "loadUnit", "arrears",
-        "prepaidOpeningbalance", "lpsc" , 'meterInstalldate'
+        "prepaidOpeningbalance", "lpsc", "meterInstalldate"
     ]
     df_input = pd.read_csv(input_csv, usecols=additional_columns)
 
@@ -95,7 +112,7 @@ def process_and_save_final_data(api_response_csv, input_csv, output_csv):
 
     # Save the updated DataFrame to the final CSV
     df_merged.to_csv(output_csv, index=False)
-    print(f"Updated data with new columns saved to {output_csv}")
+    print(f"Updated data with new columns sorted by date saved to {output_csv}")
 
 def main():
     """Main function to orchestrate the data processing."""

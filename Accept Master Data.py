@@ -3,15 +3,18 @@ import requests
 import json
 import random
 from datetime import datetime, timedelta
+import time
+
+exec(open('clear_csv.py').read())
 
 # Read data from CSV file
 df = pd.read_csv('new_file.csv')
 
 # Define API endpoint
-api_url = 'https://cis-internal.stage.gomatimvvnl.in/save_master_data/'
+api_url = 'https://gateway.test.gomatimvvnl.in/integration/initial_master_sync/'
 
 # Define Authorization Token
-# auth_token = "YOUR_AUTHORIZATION_TOKEN_HERE"
+auth_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IlZhbGlkYXRpb24tdGVhbS1UZXN0aW5nIn0.n30Zc4biuuNphxx4w2hn4xZLPsjLhANxPu5dE9GzfRo"
 
 # Function to generate random email
 def generate_email(consumer_name):
@@ -51,8 +54,9 @@ def generate_random_date(base_date_str):
 # Function to post data to API
 def post_data_to_api(data):
     headers = {
-        'Content-Type': 'application/json',
-        # 'Authorization': f'Bearer {auth_token}'
+        "Authorization": f"Bearer {auth_token}",
+        'Content-Type': 'application/json'
+        
     }
     response = requests.post(api_url, headers=headers, data=json.dumps(data))
     return response
@@ -112,3 +116,19 @@ for index, row in df.iterrows():
 
     # Print response
     print(f"Response for row {index + 1}: {response.status_code} - {response.text}")
+
+    time.sleep(2)
+
+    exec(open('test_kva.py').read())
+
+    time.sleep(1)
+
+    exec(open('test_trigger.py').read())
+
+    time.sleep(2)
+
+    exec(open('get_consumption.py').read())
+
+    time.sleep(2)
+
+    exec(open('import_csv.py').read())
